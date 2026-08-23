@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Overwhelmed</title>
+<style>
+  :root {
+    --cream: #FFF7EC;
+    --sage: #A9C4A5;
+    --sage-dark: #6E8E6A;
+    --clay: #E28B67;
+    --clay-dark: #C06B49;
+    --ink: #3A3A34;
+    --toybin: #F4C15C;
+    --trashbin: #7C93A8;
+    --sky: #7FB3D5;
+    --dusk: #6B5B95;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--cream);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--ink);
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+    padding-bottom: max(48px, env(safe-area-inset-bottom, 16px) + 32px);
+    overflow-x: hidden;
+  }
+  #mainContent {
+    display: flex; flex-direction: column; align-items: center;
+    width: 100%;
+  }
+  h1 {
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    margin: 4px 0 2px 0;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #7a7a70;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  #gameWrap {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    border: 3px solid var(--sage-dark);
+    width: 100%;
+    max-width: 640px;
+  }
+  canvas { display: block; width: 100%; height: auto; background: #F5EDE0; touch-action: none; }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 640px;
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #streakDisplay {
+    color: var(--clay-dark);
+    transition: transform 0.15s ease;
+  }
+  #streakDisplay.pop {
+    transform: scale(1.25);
+  }
+  #clockWrap {
+    width: 100%;
+    max-width: 640px;
+    margin-top: 8px;
+  }
+  #clockLabel {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  #clockBarWrap {
+    background: #e5ddcc;
+    border-radius: 8px;
+    height: 10px;
+    overflow: hidden;
+    border: 1px solid #d3c7ac;
+    position: relative;
+  }
+  #clockBarFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--sky), var(--dusk));
+    transition: width 0.2s ease;
+  }
+  #meterWrap {
+    width: 100%;
+    max-width: 640px;
+    background: #e5ddcc;
+    border-radius: 8px;
+    height: 14px;
+    margin-top: 6px;
+    overflow: hidden;
+    border: 1px solid #d3c7ac;
+  }
+  #meterFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--clay), #d94f2b);
+    transition: width 0.2s ease;
+  }
+  #overlay {
+    position: absolute; inset: 0;
+    background: rgba(58,58,52,0.88);
+    color: #FFF7EC;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 20px 24px;
+  }
+  #overlay h2 { font-size: 26px; margin: 0 0 6px 0; flex-shrink: 0; }
+  #overlayTextWrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #overlay p { font-size: 14px; max-width: 380px; line-height: 1.5; margin: 4px 0; color: #ECE4D2; }
+  #startBtn { flex-shrink: 0; margin-top: 14px; }
+  button {
+    background: var(--clay);
+    color: white;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    flex-shrink: 0;
+    margin-bottom: 8px;
+  }
+  button:hover { background: var(--clay-dark); transform: translateY(-1px); }
+  #controlsHint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #8a8a7e;
+    text-align: center;
+    max-width: 500px;
+  }
+  #touchControls {
+    display: none;
+    margin-top: 14px;
+    grid-template-columns: repeat(3, 56px);
+    grid-template-rows: repeat(3, 56px);
+    gap: 6px;
+  }
+  #touchControls button.pad {
+    background: var(--sage-dark);
+    border-radius: 12px;
+    font-size: 20px;
+    padding: 0;
+  }
+  #touchControls.hidden { display: none !important; }
+  @media (pointer: coarse) {
+    #touchControls { display: grid; }
+  }
+  #dpadToggle {
+    display: none;
+    margin-top: 10px;
+    background: none;
+    color: var(--sage-dark);
+    border: 1px solid var(--sage-dark);
+    box-shadow: none;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  #dpadToggle:hover { background: var(--sage-dark); color: white; }
+  @media (pointer: coarse) {
+    #dpadToggle { display: inline-block; }
+  }
+
+  #rotatePrompt {
+    display: none;
+    position: fixed; inset: 0;
+    background: var(--ink);
+    color: var(--cream);
+    z-index: 100000;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 32px;
+  }
+  #rotatePrompt .icon { font-size: 48px; margin-bottom: 12px; }
+  #rotatePrompt h2 { font-size: 22px; margin: 0 0 8px 0; }
+  #rotatePrompt p { font-size: 14px; color: #cfc7b4; max-width: 320px; margin: 0; }
+
+  /* Phones: require landscape, and block the game behind a rotate prompt in portrait */
+  @media (pointer: coarse) and (orientation: portrait) {
+    #rotatePrompt { display: flex; }
+    #mainContent { display: none; }
+  }
+  /* Phones in landscape have very little vertical room — trim non-essential chrome */
+  @media (pointer: coarse) and (orientation: landscape) {
+    #titleBlock { display: none; }
+    #controlsHint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="debugError" style="display:none; position:fixed; top:0; left:0; right:0; background:#d9542b; color:white; font-size:12px; padding:10px; z-index:99999; white-space:pre-wrap; font-family:monospace;"></div>
+
+<script>
+  window.onerror = function(msg, url, line, col, error) {
+    const el = document.getElementById('debugError');
+    if (el) {
+      el.style.display = 'block';
+      el.textContent = 'ERROR: ' + msg + '\n(line ' + line + ', col ' + col + ')';
+    }
+    return false;
+  };
+</script>
+
+<div id="rotatePrompt">
+  <div class="icon">📱↻</div>
+  <h2>Turn your phone sideways</h2>
+  <p>This game plays best in landscape — rotate your device to continue.</p>
+</div>
+
+<div id="mainContent">
+<div id="titleBlock">
+<h1>🍼 Overwhelmed</h1>
+<p class="subtitle">Follow the baby from 6am to bedtime. Pick up what they drop, sort it into the right bin, and empty full bins at the door before they overflow.</p>
+</div>
+
+<div id="gameWrap">
+  <canvas id="game" width="640" height="440"></canvas>
+  <div id="overlay">
+    <h2 id="overlayTitle">Ready?</h2>
+
+    <div id="overlayTextWrap"><p id="overlayText">Move with WASD or arrow keys. Grab dropped items, sort into the matching bin — toys left, trash right. Poop that flashes red too long leaves a stain — walk over it to clean. Full bins carry out to their drop-off spot. Clear everything before bedtime, or it carries into tomorrow.</p></div>
+    <button id="startBtn">Start Game</button>
+  </div>
+</div>
+
+<div id="clockWrap">
+  <div id="clockLabel"><span id="timeDisplay">6:00 AM</span><span id="segmentDisplay">Waking Up</span></div>
+  <div id="clockBarWrap"><div id="clockBarFill"></div></div>
+</div>
+
+<div id="hud">
+  <span id="scoreDisplay">Score: 0</span>
+  <span id="streakDisplay">Streak: 0</span>
+  <span id="dayDisplay">Day 1</span>
+</div>
+<div id="meterWrap"><div id="meterFill"></div></div>
+<div id="controlsHint">Arrow keys / WASD, the D-pad, or drag anywhere on the game area to move · walk into an item to pick it up</div>
+
+<div id="touchControls">
+  <div></div><button class="pad" data-dir="up">⬆️</button><div></div>
+  <button class="pad" data-dir="left">⬅️</button><div></div><button class="pad" data-dir="right">➡️</button>
+  <div></div><button class="pad" data-dir="down">⬇️</button><div></div>
+</div>
+<button id="dpadToggle">Hide D-pad</button>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const gameWrap = document.getElementById('gameWrap');
+
+  // Fit the play area to whatever space is actually available (width AND
+  // height), not just width — so hiding the D-pad or having a taller
+  // viewport lets the game area grow instead of leaving unused space.
+  // Sums each sibling's own rendered space (skipping hidden/non-visual
+  // elements) rather than trusting body.scrollHeight, which is inflated by
+  // body's min-height:100vh, or first/lastElementChild, which can land on
+  // the <script> tag or a display:none element.
+  function resizeGame() {
+    const aspect = W / H; // internal game resolution stays 640x440, only display size changes
+    const mainContent = document.getElementById('mainContent');
+    let otherHeight = 0;
+    Array.from(mainContent.children).forEach(el => {
+      if (el === gameWrap) return;
+      if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return;
+      const cs = window.getComputedStyle(el);
+      if (cs.display === 'none') return; // takes up no rendered space
+      const marginTop = parseFloat(cs.marginTop) || 0;
+      const marginBottom = parseFloat(cs.marginBottom) || 0;
+      otherHeight += el.offsetHeight + marginTop + marginBottom;
+    });
+    const bodyPaddingVertical = 32; // 16px top + 16px bottom, from body's CSS padding
+
+    const availWidth = Math.max(200, window.innerWidth - 32);
+    const availHeight = Math.max(200, window.innerHeight - otherHeight - bodyPaddingVertical - 12);
+
+    let width = availWidth;
+    let height = width / aspect;
+    if (height > availHeight) {
+      height = availHeight;
+      width = height * aspect;
+    }
+    gameWrap.style.width = Math.round(width) + 'px';
+  }
+
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayText = document.getElementById('overlayText');
+  const startBtn = document.getElementById('startBtn');
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  const streakDisplay = document.getElementById('streakDisplay');
+  const dayDisplay = document.getElementById('dayDisplay');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const segmentDisplay = document.getElementById('segmentDisplay');
+  const clockBarFill = document.getElementById('clockBarFill');
+  const meterFill = document.getElementById('meterFill');
+
+  const ITEM_WARNING_FRAMES = 120; // last ~2 seconds flashes red
+  const TOY_CLUTTER_THRESHOLD = 4; // this many toys on the floor at once is fine
+  const TOY_CLUTTER_MESS_PER_ITEM = 8; // each extra toy beyond that adds pressure
+
+  const TOY_EMOJIS = ['🧸','🪀','🧩','🚗','🦆'];
+  const POOP_EMOJI = '💩';
+  const PARENT_EMOJI = '🧍';
+  const BABY_EMOJI = '👶';
+  const BABY_SLEEP_EMOJI = '😴';
+
+  const TOY_BIN = { x: 40, y: H/2 - 45, w: 80, h: 90, emoji: '🧺', label: 'Toy Bin', type: 'toy', capacity: 5 };
+  const TRASH_BIN = { x: W - 120, y: H/2 - 45, w: 80, h: 90, emoji: '🗑️', label: 'Trash', type: 'poop', capacity: 5 };
+  const TOY_DROPOFF = { x: W/2 - 45, y: 14, w: 90, h: 58, emoji: '🚪', label: 'Put toys away' };
+  const TRASH_DROPOFF = { x: W/2 - 45, y: H - 70, w: 90, h: 58, emoji: '🚛', label: 'Take out' };
+
+  // Furniture fills in as the family settles into the house — none on Day 1,
+  // then one more solid piece each day. The parent has to walk around these;
+  // the baby (small, crawls under/around everything) ignores them entirely.
+  const FURNITURE_POOL = [
+    { name: 'Coffee Table', emoji: '🛋️', x: 265, y: 245, w: 110, h: 50 },
+    { name: 'Bookshelf',    emoji: '📚', x: 460, y: 55,  w: 60,  h: 75 },
+    { name: 'TV Stand',     emoji: '📺', x: 115, y: 325, w: 95,  h: 40 },
+    { name: 'Cabinet',      emoji: '🗄️', x: 450, y: 325, w: 70,  h: 60 },
+    { name: 'High Chair',   emoji: '🪑', x: 175, y: 55,  w: 50,  h: 55 }
+  ];
+
+  function getFurnitureForDay(day) {
+    if (day <= 3) return []; // furniture-free through Day 3 — pace alone is enough of a step up
+    const count = Math.min(FURNITURE_POOL.length, day - 3);
+    return FURNITURE_POOL.slice(0, count);
+  }
+
+  // Day runs 6am (hour 6) to 6pm (hour 18). Each segment has its own pacing.
+  const DAY_START_HOUR = 6;
+  const DAY_END_HOUR = 18;
+  const GAME_HOUR_SECONDS = 6; // real seconds per in-game hour
+  const DAY_DURATION_SECONDS = (DAY_END_HOUR - DAY_START_HOUR) * GAME_HOUR_SECONDS;
+  const CLOSING_WINDOW_SECONDS = 60; // fallback cap so closing time can't run forever
+
+  const SEGMENTS = [
+    { start: 6,  end: 8,  name: 'Waking Up',            intensity: 0.5 },
+    { start: 8,  end: 11, name: 'Morning Play',         intensity: 1.0 },
+    { start: 11, end: 13, name: 'Pre-Nap Fussiness',    intensity: 1.7 },
+    { start: 13, end: 15, name: 'Nap Time',             intensity: 0,   nap: true },
+    { start: 15, end: 17, name: 'Afternoon Play',       intensity: 1.3 },
+    { start: 17, end: 18, name: 'Bedtime Witching Hour',intensity: 2.0 }
+  ];
+
+  function getSegment(hour) {
+    for (const seg of SEGMENTS) {
+      if (hour >= seg.start && hour < seg.end) return seg;
+    }
+    return SEGMENTS[SEGMENTS.length - 1];
+  }
+
+  function formatClock(hour) {
+    const totalMinutes = Math.floor((hour - DAY_START_HOUR) * 60) + DAY_START_HOUR * 60;
+    let h24 = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    let h12 = h24 % 12;
+    if (h12 === 0) h12 = 12;
+    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+  }
+
+  let keys = {};
+  let touchDir = { x: 0, y: 0 }; // set by drag-to-move touch controls
+  let running = false;
+  let animFrame;
+  let dayNumber = 1;
+
+  // whatever's still on the floor when the night ends carries into tomorrow
+  let pendingStains = [];
+  let pendingItems = [];
+  let pendingToyFill = 0;
+  let pendingTrashFill = 0;
+
+  let parent, baby, items, stains, carried, carryingBin, score, streak, bestStreak, mess, elapsed,
+      dropTimer, dropInterval, babyDir, babyDirTimer, lastTime, streakPopTimer,
+      toyBinFill, trashBinFill, currentSegment, prevSegmentName, closing, closingTimer, furniture;
+
+  function dayFactor() {
+    return 1 + (dayNumber - 1) * 0.15;
+  }
+
+  // Day 1 flattens the difference between segments so the hard stretches
+  // (pre-nap, bedtime) don't hit a brand-new player at full force. Later
+  // days widen the swing between calm and chaotic segments, ramping slowly
+  // and continuously rather than in big steps.
+  // Days 1-2 ramp as before (already tuned); Day 3 onward slows down further
+  // so several new-ish mechanics (furniture, pace, poop ratio) don't all
+  // stack up hard by Day 5.
+  function intensitySpread() {
+    if (dayNumber <= 2) return 0.35 + (dayNumber - 1) * 0.13;
+    return Math.min(1, 0.48 + (dayNumber - 2) * 0.07);
+  }
+
+  function segmentIntensity(seg) {
+    if (seg.nap) return 0; // nap always fully pauses drops, regardless of day
+    return 1 + (seg.intensity - 1) * intensitySpread();
+  }
+
+  function poopChance() {
+    if (dayNumber <= 2) return 0.25 + (dayNumber - 1) * 0.03;
+    return Math.min(0.45, 0.28 + (dayNumber - 2) * 0.02);
+  }
+
+  // Newborns/young babies simply don't generate that much volume yet.
+  // Ease off hard on Day 1 and climb back to full pace slowly over several
+  // days instead of jumping most of the way there by Day 5.
+  function dayEase() {
+    if (dayNumber <= 2) return 0.6 + (dayNumber - 1) * 0.1;
+    return Math.min(1, 0.7 + (dayNumber - 2) * 0.05);
+  }
+
+  function resetState(carryOver) {
+    parent = { x: W/2, y: H - 90, size: 34, speed: 5.3 };
+    baby = { x: W/2, y: 90, size: 30, speed: 2.3 };
+    items = carryOver ? pendingItems.slice() : [];
+    stains = carryOver ? pendingStains.slice() : [];
+    carried = null;
+    carryingBin = null;
+    score = 0;
+    streak = 0;
+    bestStreak = 0;
+    mess = Math.min(100, stains.length * 15);
+    elapsed = 0;
+    dropTimer = 0;
+    dropInterval = 130;
+    babyDir = { x: 1, y: 0.3 };
+    babyDirTimer = 0;
+    lastTime = null;
+    streakPopTimer = 0;
+    toyBinFill = carryOver ? pendingToyFill : 0;
+    trashBinFill = carryOver ? pendingTrashFill : 0;
+    currentSegment = getSegment(DAY_START_HOUR);
+    prevSegmentName = null;
+    closing = false;
+    closingTimer = 0;
+    furniture = getFurnitureForDay(dayNumber);
+    pendingStains = [];
+    pendingItems = [];
+    pendingToyFill = 0;
+    pendingTrashFill = 0;
+  }
+
+  // Manual rounded-rect path — ctx.roundRect() isn't supported in every
+  // browser/webview, so we draw the path by hand for maximum compatibility.
+  function roundedRectPath(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
+  function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + ah && ay + ah > by;
+  }
+
+  function currentGameHour() {
+    return DAY_START_HOUR + (elapsed / GAME_HOUR_SECONDS);
+  }
+
+  function updateBaby(dt, forceSleep) {
+    const seg = currentSegment;
+    const effIntensity = segmentIntensity(seg) * dayFactor() * dayEase();
+    const isNap = !!seg.nap || forceSleep;
+
+    babyDirTimer -= dt;
+    if (babyDirTimer <= 0) {
+      const angle = Math.random() * Math.PI * 2;
+      babyDir = { x: Math.cos(angle), y: Math.sin(angle) };
+      babyDirTimer = 40 + Math.random() * 60;
+    }
+    const speedMult = isNap ? 0.15 : (0.6 + 0.4 * effIntensity);
+    baby.x += babyDir.x * baby.speed * speedMult;
+    baby.y += babyDir.y * baby.speed * speedMult;
+    const margin = 50;
+    if (baby.x < margin) { baby.x = margin; babyDir.x *= -1; }
+    if (baby.x > W - margin) { baby.x = W - margin; babyDir.x *= -1; }
+    if (baby.y < margin) { baby.y = margin; babyDir.y *= -1; }
+    if (baby.y > H - 100) { baby.y = H - 100; babyDir.y *= -1; }
+
+    if (isNap) {
+      // no drops during nap — this is catch-up time for leftover toys and stains
+      return;
+    }
+
+    dropTimer += dt;
+    const effectiveInterval = Math.max(50, 130 / effIntensity);
+    if (dropTimer > effectiveInterval) {
+      dropTimer = 0;
+      const isPoop = Math.random() < poopChance();
+      const fuse = Math.max(170, 360 - effIntensity * 60);
+      items.push({
+        x: baby.x + (Math.random() * 20 - 10),
+        y: baby.y + 18,
+        type: isPoop ? 'poop' : 'toy',
+        emoji: isPoop ? POOP_EMOJI : TOY_EMOJIS[Math.floor(Math.random() * TOY_EMOJIS.length)],
+        size: 26,
+        hasTimer: isPoop,
+        life: fuse,
+        maxLife: fuse
+      });
+    }
+  }
+
+  function updateItems(dt) {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (!it.hasTimer) continue;
+      it.life -= dt;
+      if (it.life <= 0) {
+        items.splice(i, 1);
+        stains.push({ x: it.x, y: it.y });
+        streak = 0;
+      }
+    }
+    const toyCount = items.filter(it => it.type === 'toy').length;
+    const clutterExcess = Math.max(0, toyCount - TOY_CLUTTER_THRESHOLD);
+    mess = Math.min(100, stains.length * 15 + clutterExcess * TOY_CLUTTER_MESS_PER_ITEM);
+  }
+
+  function collidesFurniture(px, py) {
+    const half = 14;
+    return furniture.some(f => rectsOverlap(px - half, py - half, half * 2, half * 2, f.x, f.y, f.w, f.h));
+  }
+
+  function updateParent() {
+    let dx = 0, dy = 0;
+    if (keys['ArrowUp'] || keys['w']) dy -= 1;
+    if (keys['ArrowDown'] || keys['s']) dy += 1;
+    if (keys['ArrowLeft'] || keys['a']) dx -= 1;
+    if (keys['ArrowRight'] || keys['d']) dx += 1;
+    // drag-to-move touch input adds in too, so either control scheme works
+    dx += touchDir.x;
+    dy += touchDir.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const targetX = parent.x + (dx / len) * parent.speed;
+    const targetY = parent.y + (dy / len) * parent.speed;
+    // move on each axis independently so the parent slides along furniture
+    // edges instead of getting fully stuck when approaching at an angle
+    if (!collidesFurniture(targetX, parent.y)) parent.x = targetX;
+    if (!collidesFurniture(parent.x, targetY)) parent.y = targetY;
+    parent.x = Math.max(20, Math.min(W - 20, parent.x));
+    parent.y = Math.max(20, Math.min(H - 20, parent.y));
+
+    // cleaning a stain works even with hands full — just walk over it
+    for (let i = stains.length - 1; i >= 0; i--) {
+      const st = stains[i];
+      if (Math.hypot(parent.x - st.x, parent.y - st.y) < 24) {
+        stains.splice(i, 1);
+        score += 1;
+      }
+    }
+
+    // carrying a full bin out to its drop-off spot — toys go up, trash goes out
+    if (carryingBin) {
+      const dropoff = carryingBin === 'toy' ? TOY_DROPOFF : TRASH_DROPOFF;
+      if (rectsOverlap(parent.x - 16, parent.y - 16, 32, 32, dropoff.x, dropoff.y, dropoff.w, dropoff.h)) {
+        if (carryingBin === 'toy') toyBinFill = 0; else trashBinFill = 0;
+        score += 2;
+        carryingBin = null;
+      }
+      return; // hands full with the bin, can't pick up items
+    }
+
+    if (!carried) {
+      // check if standing on a full bin to carry it out
+      if (toyBinFill >= TOY_BIN.capacity &&
+          rectsOverlap(parent.x - 16, parent.y - 16, 32, 32, TOY_BIN.x, TOY_BIN.y, TOY_BIN.w, TOY_BIN.h)) {
+        carryingBin = 'toy';
+        return;
+      }
+      if (trashBinFill >= TRASH_BIN.capacity &&
+          rectsOverlap(parent.x - 16, parent.y - 16, 32, 32, TRASH_BIN.x, TRASH_BIN.y, TRASH_BIN.w, TRASH_BIN.h)) {
+        carryingBin = 'trash';
+        return;
+      }
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        const d = Math.hypot(parent.x - it.x, parent.y - it.y);
+        if (d < 26) {
+          carried = it;
+          items.splice(i, 1);
+          break;
+        }
+      }
+    } else {
+      const bin = carried.type === 'toy' ? TOY_BIN : TRASH_BIN;
+      const fill = carried.type === 'toy' ? toyBinFill : trashBinFill;
+      if (fill < bin.capacity &&
+          rectsOverlap(parent.x - 16, parent.y - 16, 32, 32, bin.x, bin.y, bin.w, bin.h)) {
+        streak += 1;
+        bestStreak = Math.max(bestStreak, streak);
+        const bonus = Math.floor(streak / 5);
+        score += 1 + bonus;
+        if (carried.type === 'toy') toyBinFill += 1; else trashBinFill += 1;
+        carried = null;
+        streakPopTimer = 12;
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // floor — tints slightly toward dusk in the last segment
+    const seg = currentSegment;
+    ctx.fillStyle = seg.name === 'Bedtime Witching Hour' ? '#EFE3DA' : '#F5EDE0';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+    for (let gx = 0; gx < W; gx += 40) {
+      ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke();
+    }
+    for (let gy = 0; gy < H; gy += 40) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+    }
+
+    // furniture — solid obstacles the parent has to walk around
+    furniture.forEach(f => {
+      ctx.fillStyle = 'rgba(139,111,78,0.28)';
+            roundedRectPath(f.x, f.y, f.w, f.h, 8);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(110,85,58,0.6)';
+      ctx.lineWidth = 2;
+            roundedRectPath(f.x, f.y, f.w, f.h, 8);
+      ctx.stroke();
+      ctx.font = '22px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#3A3A34';
+      ctx.fillText(f.emoji, f.x + f.w / 2, f.y + f.h / 2);
+    });
+
+    // bins
+    drawBin(TOY_BIN, '#F4C15C', toyBinFill, carryingBin === 'toy');
+    drawBin(TRASH_BIN, '#7C93A8', trashBinFill, carryingBin === 'trash');
+
+    // drop-off spots — full toy bin carries up top, full trash bin carries out the bottom
+    drawDropoff(TOY_DROPOFF);
+    drawDropoff(TRASH_DROPOFF);
+
+    // stains left behind by expired poop — must be walked over to clean
+    stains.forEach(st => {
+      ctx.fillStyle = 'rgba(92,58,20,0.75)';
+      ctx.beginPath();
+      ctx.ellipse(st.x, st.y + 6, 20, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(60,38,12,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = '14px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillText('💦', st.x, st.y + 4);
+    });
+
+    // items on floor — poop pulses/flashes as it nears expiry; toys sit calmly
+    items.forEach(it => {
+      let scale = 1;
+      if (it.hasTimer) {
+        const frac = it.life / it.maxLife;
+        const urgent = it.life < ITEM_WARNING_FRAMES;
+        if (urgent) {
+          const flashSpeed = 0.35;
+          scale = 1 + 0.15 * Math.sin(it.life * flashSpeed);
+          ctx.strokeStyle = `rgba(217,79,43,${0.5 + 0.5 * Math.sin(it.life * flashSpeed)})`;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(it.x, it.y, 20, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          scale = 1 + 0.05 * Math.sin(elapsed * 4 + it.x);
+        }
+        ctx.save();
+        ctx.translate(it.x, it.y);
+        ctx.scale(scale, scale);
+        ctx.font = '26px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = urgent ? 0.7 + 0.3 * frac : 1;
+        ctx.fillText(it.emoji, 0, 0);
+        ctx.restore();
+      } else {
+        ctx.font = '26px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 1;
+        ctx.fillText(it.emoji, it.x, it.y);
+      }
+    });
+
+    // baby
+    const sleeping = seg.nap || closing;
+    ctx.font = '32px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sleeping ? BABY_SLEEP_EMOJI : BABY_EMOJI, baby.x, baby.y);
+
+    if (closing) {
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = 'rgba(58,58,52,0.6)';
+      ctx.textAlign = 'center';
+      ctx.fillText('🌙 Bedtime — clean up the house to finish the day!', W / 2, 24);
+    } else if (seg.nap) {
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = 'rgba(58,58,52,0.55)';
+      ctx.textAlign = 'center';
+      ctx.fillText('😴 Nap time — clean up leftover toys and stains!', W / 2, 24);
+    }
+
+    // parent
+    ctx.font = '34px serif';
+    ctx.fillText(PARENT_EMOJI, parent.x, parent.y);
+
+    // carried indicator
+    if (carried) {
+      ctx.font = '20px serif';
+      ctx.fillText(carried.emoji, parent.x, parent.y - 30);
+    }
+    if (carryingBin) {
+      const binEmoji = carryingBin === 'toy' ? TOY_BIN.emoji : TRASH_BIN.emoji;
+      ctx.font = '22px serif';
+      ctx.fillText(binEmoji, parent.x, parent.y - 30);
+    }
+  }
+
+  function drawDropoff(spot) {
+    ctx.fillStyle = '#B79A75';
+    ctx.globalAlpha = 0.25;
+        roundedRectPath(spot.x, spot.y, spot.w, spot.h, 10);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#8a6f4d';
+    ctx.lineWidth = 2;
+        roundedRectPath(spot.x, spot.y, spot.w, spot.h, 10);
+    ctx.stroke();
+    ctx.font = '16px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(spot.emoji + ' ' + spot.label, spot.x + spot.w / 2, spot.y + spot.h / 2);
+  }
+
+  function drawBin(bin, color, fill, beingCarried) {
+    const full = fill >= bin.capacity;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = beingCarried ? 0.08 : 0.25;
+        roundedRectPath(bin.x, bin.y, bin.w, bin.h, 12);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = full && !beingCarried ? '#d94f2b' : color;
+    ctx.lineWidth = full && !beingCarried ? 3 : 2;
+        roundedRectPath(bin.x, bin.y, bin.w, bin.h, 12);
+    ctx.stroke();
+    if (!beingCarried) {
+      ctx.font = '30px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(bin.emoji, bin.x + bin.w / 2, bin.y + bin.h / 2 - 10);
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = full ? '#d94f2b' : '#3A3A34';
+      ctx.fillText(full ? 'FULL — carry out!' : `${bin.label} ${fill}/${bin.capacity}`, bin.x + bin.w / 2, bin.y + bin.h - 8);
+    } else {
+      ctx.font = '11px sans-serif';
+      ctx.fillStyle = '#a89a80';
+      ctx.textAlign = 'center';
+      ctx.fillText('emptying…', bin.x + bin.w / 2, bin.y + bin.h / 2);
+    }
+  }
+
+  function houseIsClean() {
+    const binsFull = toyBinFill >= TOY_BIN.capacity || trashBinFill >= TRASH_BIN.capacity;
+    return stains.length === 0 && items.length === 0 && !binsFull && !carried && !carryingBin;
+  }
+
+  function loop(ts) {
+    if (!running) return;
+    if (lastTime === null) lastTime = ts;
+    const dt = Math.min(4, (ts - lastTime) / 16.67);
+    lastTime = ts;
+
+    if (!closing) {
+      elapsed += dt / 60;
+      if (elapsed >= DAY_DURATION_SECONDS) {
+        elapsed = DAY_DURATION_SECONDS;
+        closing = true;
+        closingTimer = CLOSING_WINDOW_SECONDS;
+      }
+      currentSegment = getSegment(currentGameHour());
+    } else {
+      closingTimer -= dt / 60;
+    }
+
+    updateBaby(dt, closing);
+    updateItems(dt);
+    updateParent();
+    draw();
+
+    scoreDisplay.textContent = 'Score: ' + score;
+    streakDisplay.textContent = 'Streak: ' + streak;
+    dayDisplay.textContent = 'Day ' + dayNumber;
+    if (closing) {
+      timeDisplay.textContent = '6:00 PM';
+      segmentDisplay.textContent = 'Closing Time';
+    } else {
+      timeDisplay.textContent = formatClock(currentGameHour());
+      segmentDisplay.textContent = currentSegment.name;
+    }
+    meterFill.style.width = mess + '%';
+    const dayProgress = Math.min(100, (elapsed / DAY_DURATION_SECONDS) * 100);
+    clockBarFill.style.width = dayProgress + '%';
+
+    if (streakPopTimer > 0) {
+      streakPopTimer -= dt;
+      streakDisplay.classList.add('pop');
+    } else {
+      streakDisplay.classList.remove('pop');
+    }
+
+    if (mess >= 100) {
+      gameOver();
+      return;
+    }
+    if (closing && (houseIsClean() || closingTimer <= 0)) {
+      dayComplete();
+      return;
+    }
+
+    animFrame = requestAnimationFrame(loop);
+  }
+
+  function gameOver() {
+    running = false;
+    cancelAnimationFrame(animFrame);
+    overlayTitle.textContent = 'Overwhelmed! 😩';
+    overlayText.textContent = `The stains piled up faster than you could clean. Final score: ${score}, best streak: ${bestStreak}, made it to ${formatClock(currentGameHour())} on Day ${dayNumber}. Try again?`;
+    startBtn.textContent = 'Try Day ' + dayNumber + ' Again';
+    overlay.style.display = 'flex';
+  }
+
+  function rateEnding() {
+    const binsFull = toyBinFill >= TOY_BIN.capacity || trashBinFill >= TRASH_BIN.capacity;
+    const stainCount = stains.length;
+    const toyCount = items.length;
+    if (stainCount === 0 && toyCount === 0 && !binsFull) {
+      return { label: 'Spotless House! ✨', bonus: 10, note: 'Not a stain or a stray toy in sight, and both bins emptied — a perfectly tidy end to the day.' };
+    }
+    if (stainCount <= 2 && toyCount <= 3 && !binsFull) {
+      return { label: 'Good Enough 🙂', bonus: 4, note: `A few things left out (${stainCount} stain${stainCount === 1 ? '' : 's'}, ${toyCount} toy${toyCount === 1 ? '' : 's'}), but nothing too bad.` };
+    }
+    return { label: 'Messy House 😬', bonus: 0, note: `The house was still a mess at bedtime — ${stainCount} stain${stainCount === 1 ? '' : 's'} and ${toyCount} toy${toyCount === 1 ? '' : 's'} left${binsFull ? ', plus a bin still full' : ''}.` };
+  }
+
+  function dayComplete() {
+    running = false;
+    cancelAnimationFrame(animFrame);
+
+    // whatever was in the parent's hands at bedtime drops right where they stood
+    if (carried) {
+      items.push(carried);
+      carried = null;
+    }
+
+    // any poop still sitting out when the night ends becomes an overnight stain
+    for (let i = items.length - 1; i >= 0; i--) {
+      if (items[i].type === 'poop') {
+        stains.push({ x: items[i].x, y: items[i].y });
+        items.splice(i, 1);
+      }
+    }
+    mess = Math.min(100, stains.length * 15);
+
+    const rating = rateEnding();
+    score += rating.bonus;
+
+    // carry whatever's left straight into tomorrow morning
+    pendingStains = stains.slice();
+    pendingItems = items.slice();
+    pendingToyFill = toyBinFill;
+    pendingTrashFill = trashBinFill;
+    const leftoverCount = pendingStains.length + pendingItems.length;
+    const leftoverNote = leftoverCount > 0
+      ? ` ${pendingStains.length} stain${pendingStains.length === 1 ? '' : 's'} and ${pendingItems.length} toy${pendingItems.length === 1 ? '' : 's'} were left out overnight — they'll be waiting for you in the morning.`
+      : '';
+
+    overlayTitle.textContent = 'Bedtime! 🌙 Day ' + dayNumber + ' Complete';
+    overlayText.textContent = `${rating.label} ${rating.note} Final score: ${score} (best streak: ${bestStreak}).${leftoverNote} Day ${dayNumber + 1} swings harder between calm and chaotic stretches.`;
+    startBtn.textContent = 'Start Day ' + (dayNumber + 1);
+    overlay.dataset.advanceDay = '1';
+    overlay.style.display = 'flex';
+  }
+
+  function startGame() {
+    const dbg = document.getElementById('debugError');
+    if (dbg) {
+      dbg.style.display = 'block';
+      dbg.style.background = '#557861';
+      dbg.textContent = 'Start tap registered — starting game...';
+    }
+    const advancing = overlay.dataset.advanceDay === '1';
+    if (advancing) {
+      dayNumber += 1;
+      overlay.dataset.advanceDay = '0';
+    }
+    resetState(advancing);
+    overlay.style.display = 'none';
+    running = true;
+    animFrame = requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  window.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+  // touch controls — on-screen D-pad
+  const touchControlsEl = document.getElementById('touchControls');
+  const dpadToggle = document.getElementById('dpadToggle');
+  document.querySelectorAll('.pad').forEach(btn => {
+    const dirMap = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
+    const key = dirMap[btn.dataset.dir];
+    const setKey = (v) => (e) => { e.preventDefault(); keys[key] = v; };
+    btn.addEventListener('touchstart', setKey(true));
+    btn.addEventListener('touchend', setKey(false));
+    btn.addEventListener('mousedown', setKey(true));
+    btn.addEventListener('mouseup', setKey(false));
+    btn.addEventListener('mouseleave', setKey(false));
+  });
+
+  dpadToggle.addEventListener('click', () => {
+    const hidden = touchControlsEl.classList.toggle('hidden');
+    dpadToggle.textContent = hidden ? 'Show D-pad' : 'Hide D-pad';
+    resizeGame();
+  });
+
+  // touch controls — drag anywhere on the game area, virtual-joystick style
+  let touchOrigin = null;
+  const TOUCH_DEADZONE = 6; // px of drag before it counts as a direction
+
+  function updateTouchDir(clientX, clientY) {
+    if (!touchOrigin) return;
+    const dx = clientX - touchOrigin.x;
+    const dy = clientY - touchOrigin.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < TOUCH_DEADZONE) {
+      touchDir.x = 0; touchDir.y = 0;
+    } else {
+      touchDir.x = dx / dist;
+      touchDir.y = dy / dist;
+    }
+  }
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    touchOrigin = { x: t.clientX, y: t.clientY };
+    touchDir.x = 0; touchDir.y = 0;
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    updateTouchDir(t.clientX, t.clientY);
+  }, { passive: false });
+
+  const clearTouch = () => {
+    touchOrigin = null;
+    touchDir.x = 0; touchDir.y = 0;
+  };
+  canvas.addEventListener('touchend', clearTouch);
+  canvas.addEventListener('touchcancel', clearTouch);
+
+  resetState();
+  draw();
+  timeDisplay.textContent = formatClock(DAY_START_HOUR);
+  segmentDisplay.textContent = currentSegment.name;
+
+  resizeGame();
+  window.addEventListener('resize', resizeGame);
+  window.addEventListener('orientationchange', resizeGame);
+})();
+</script>
+</body>
+</html>
